@@ -173,7 +173,6 @@ map.on('zoomend', controlarZoomDinamico);
 // =========================================================
 
 
-// 4. Cargamos los datos del archivo GeoJSON externo
 // 4. CARGAMOS LOS DATOS DE INCIDENTES (NUEVA ESTRUCTURA)
 fetch('datos.geojson')
     .then(response => response.json())
@@ -182,16 +181,15 @@ fetch('datos.geojson')
             onEachFeature: function (feature, layer) {
                 if (feature.properties) {
                     
-                    // Función auxiliar rápida para limpiar datos nulos o vacíos que vienen de Excel
                     const limpiar = (dato) => (dato && dato !== "NaN" && dato !== "null" && dato !== null) ? dato : '';
 
-                    // 1. Extraemos las nuevas columnas
+                    // 1. Extraemos las columnas
                     let municipio = limpiar(feature.properties['MUNICIPIO']) || 'Municipio desconocido';
-                    let fecha = limpiar(feature.properties['FECHA']);
-                    let hora = limpiar(feature.properties['HORA']);
+                    let fecha = limpiar(feature.properties['FECHA']) || 'Sin fecha';
+                    let hora = limpiar(feature.properties['HORA']) || 'Sin hora';
                     let vehiculos = limpiar(feature.properties['VEHÍCULOS']);
                     let detenidos = limpiar(feature.properties['DETENIDOS']);
-                    let inmueble = limpiar(feature.properties['INMUEBLE']);
+                    let inmueble = limpiar(feature.properties['INMUEBLE']); // El dato sigue siendo "INMUEBLE" en tu Excel
                     
                     let caracteristicas = limpiar(feature.properties['CARACTERÍSTICAS DEL VEHÍCULO / INMUEBLE']);
                     let descripcion = limpiar(feature.properties['DESCRIPCIÓN']);
@@ -203,17 +201,21 @@ fetch('datos.geojson')
                             <h4 style="margin-top:0; margin-bottom: 5px; color:#0056b3; font-size: 16px;">${municipio}</h4>
                     `;
                     
-                    // Si hay fecha y hora, las mostramos
-                    if (fecha || hora) {
-                        popupContent += `<p style="font-size: 13px; color: #555; margin-bottom: 8px;">📅 ${fecha} | ⏰ ${hora}</p>`;
+                    // --- PRIMER VISTAZO: Fecha, Hora y Detenidos ---
+                    let infoVistazo = `<p style="font-size: 13px; color: #555; margin-bottom: 8px;">📅 ${fecha} | ⏰ ${hora}`;
+                    if (detenidos) {
+                        // Resaltamos los detenidos en un renglón abajo pero dentro del mismo bloque principal
+                        infoVistazo += `<br><span style="color: #d9534f; font-weight: bold;">🚨 Detenidos: ${detenidos}</span>`;
                     }
+                    infoVistazo += `</p>`;
+                    popupContent += infoVistazo;
 
-                    // Agregamos indicadores rápidos si es que traen información
+                    // --- INDICADORES SECUNDARIOS: Tipo y Vehículos ---
                     let indicadores = "";
-                    if (detenidos) indicadores += `<b>Detenidos:</b> ${detenidos}<br>`;
+                    // Cambiamos la palabra "Inmueble" por "Tipo"
+                    if (inmueble) indicadores += `<b>Tipo:</b> ${inmueble}<br>`; 
                     if (vehiculos) indicadores += `<b>Vehículos:</b> ${vehiculos}<br>`;
-                    if (inmueble) indicadores += `<b>Inmueble:</b> ${inmueble}<br>`;
-                    
+                    if (detenidos) indicadores += `<b>Detenidos:</b> <span style="color: #d9534f; font-weight: bold;">${detenidos}</span><br>`;
                     if (indicadores !== "") {
                         popupContent += `<div style="font-size: 13px; margin-bottom: 12px; background: #f8f9fa; padding: 5px; border-left: 3px solid #ffc107;">${indicadores}</div>`;
                     }
@@ -224,7 +226,7 @@ fetch('datos.geojson')
                     if (caracteristicas) textoModal += `--- CARACTERÍSTICAS ---\n${caracteristicas}\n\n`;
                     if (observaciones) textoModal += `--- OBSERVACIONES ---\n${observaciones}`;
 
-                    // 4. Si hay texto pesado, creamos el botón que abre el Modal
+                    // 4. Botón del Modal
                     if (textoModal.trim() !== "") {
                         let idUnico = "tarjeta_" + Math.random().toString(36).substr(2, 9);
                         window.almacenTarjetas[idUnico] = textoModal;

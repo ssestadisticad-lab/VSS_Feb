@@ -174,39 +174,62 @@ map.on('zoomend', controlarZoomDinamico);
 
 
 // 4. Cargamos los datos del archivo GeoJSON externo
+// 4. CARGAMOS LOS DATOS DE INCIDENTES (NUEVA ESTRUCTURA)
 fetch('datos.geojson')
     .then(response => response.json())
     .then(data => {
-        // Añadimos los datos al mapa
         L.geoJSON(data, {
-             // Esta función se ejecuta por cada punto en tu GeoJSON
             onEachFeature: function (feature, layer) {
                 if (feature.properties) {
-                    let estado = feature.properties['Entidad fererativa '] || '';
-                    let municipio = feature.properties['Municipio '] || 'Municipio desconocido';
-                    let colonia = feature.properties['Localidad y/o colonia '] || 'Sin descripción';
-                    let link = feature.properties['Link o tarjeta. '];
                     
+                    // Función auxiliar rápida para limpiar datos nulos o vacíos que vienen de Excel
+                    const limpiar = (dato) => (dato && dato !== "NaN" && dato !== "null" && dato !== null) ? dato : '';
+
+                    // 1. Extraemos las nuevas columnas
+                    let municipio = limpiar(feature.properties['MUNICIPIO']) || 'Municipio desconocido';
+                    let fecha = limpiar(feature.properties['FECHA']);
+                    let hora = limpiar(feature.properties['HORA']);
+                    let vehiculos = limpiar(feature.properties['VEHÍCULOS']);
+                    let detenidos = limpiar(feature.properties['DETENIDOS']);
+                    let inmueble = limpiar(feature.properties['INMUEBLE']);
+                    
+                    let caracteristicas = limpiar(feature.properties['CARACTERÍSTICAS DEL VEHÍCULO / INMUEBLE']);
+                    let descripcion = limpiar(feature.properties['DESCRIPCIÓN']);
+                    let observaciones = limpiar(feature.properties['OBSERVACIONES']);
+
+                    // 2. Armamos la burbuja rápida (Popup)
                     let popupContent = `
                         <div style="font-family: sans-serif; min-width: 220px;">
                             <h4 style="margin-top:0; margin-bottom: 5px; color:#0056b3; font-size: 16px;">${municipio}</h4>
-                            <p style="font-size: 13px; color: #555; margin-bottom: 10px;">${estado}</p>
-                            <p style="font-size: 14px; margin-bottom: 10px;"><b>Ubicación:</b><br>${colonia}</p>
                     `;
                     
-                    if (link && link !== "" && link !== "NaN" && link !== null) {
-                        if (link.startsWith("http")) {
-                            popupContent += `<a href="${link}" target="_blank" style="display:block; text-align:center; padding:8px 12px; background-color:#d9534f; color:white; text-decoration:none; border-radius:4px; font-weight:bold; font-size: 13px;">Ver Enlace Externo</a>`;
-                        } else {
-                            // MAGIA AQUÍ: Creamos un ID único y aleatorio para este punto
-                            let idUnico = "tarjeta_" + Math.random().toString(36).substr(2, 9);
-                            
-                            // Guardamos el texto largo en nuestro almacén de JavaScript, no en el HTML
-                            window.almacenTarjetas[idUnico] = link;
-                            
-                            // El botón ahora solo manda a llamar ese ID cortito y 100% seguro
-                            popupContent += `<button onclick="abrirTarjeta('${idUnico}')" style="width: 100%; padding: 8px; background-color: #007BFF; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 13px;">Ver Tarjeta Completa</button>`;
-                        }
+                    // Si hay fecha y hora, las mostramos
+                    if (fecha || hora) {
+                        popupContent += `<p style="font-size: 13px; color: #555; margin-bottom: 8px;">📅 ${fecha} | ⏰ ${hora}</p>`;
+                    }
+
+                    // Agregamos indicadores rápidos si es que traen información
+                    let indicadores = "";
+                    if (detenidos) indicadores += `<b>Detenidos:</b> ${detenidos}<br>`;
+                    if (vehiculos) indicadores += `<b>Vehículos:</b> ${vehiculos}<br>`;
+                    if (inmueble) indicadores += `<b>Inmueble:</b> ${inmueble}<br>`;
+                    
+                    if (indicadores !== "") {
+                        popupContent += `<div style="font-size: 13px; margin-bottom: 12px; background: #f8f9fa; padding: 5px; border-left: 3px solid #ffc107;">${indicadores}</div>`;
+                    }
+
+                    // 3. Armamos el texto masivo para el Modal
+                    let textoModal = "";
+                    if (descripcion) textoModal += `--- DESCRIPCIÓN ---\n${descripcion}\n\n`;
+                    if (caracteristicas) textoModal += `--- CARACTERÍSTICAS ---\n${caracteristicas}\n\n`;
+                    if (observaciones) textoModal += `--- OBSERVACIONES ---\n${observaciones}`;
+
+                    // 4. Si hay texto pesado, creamos el botón que abre el Modal
+                    if (textoModal.trim() !== "") {
+                        let idUnico = "tarjeta_" + Math.random().toString(36).substr(2, 9);
+                        window.almacenTarjetas[idUnico] = textoModal;
+                        
+                        popupContent += `<button onclick="window.abrirTarjeta('${idUnico}')" style="width: 100%; padding: 8px; background-color: #007BFF; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; font-size: 13px;">Ver Reporte Completo</button>`;
                     }
                     
                     popupContent += `</div>`;
@@ -215,7 +238,7 @@ fetch('datos.geojson')
             }
         }).addTo(map);
     })
-    .catch(error => console.error('Error al cargar el GeoJSON:', error));
+    .catch(error => console.error('Error al cargar datos.geojson:', error));
 
 // =========================================================
 // --- OBTENER COORDENADAS CON CLIC SECUNDARIO (RIGHT CLICK) ---

@@ -74,6 +74,8 @@ function renderizarIncidentes(municipioFiltro) {
     grupoMarcadores.clearLayers(); 
     let coordenadasCalor = [];     
     let contadorEventos = 0; 
+    
+    let htmlListaLateral = ""; // Memoria para ir armando las tarjetitas de la lista
 
     L.geoJSON(datosCrudosIncidentes, {
         filter: function(feature) {
@@ -82,7 +84,6 @@ function renderizarIncidentes(municipioFiltro) {
             let munFiltroStr = normalizarTexto(municipioFiltro);
             return munFiltroStr.includes(munPunto) || munPunto.includes(munFiltroStr);
         },
-        // NUEVO: Le decimos a Leaflet que use nuestro triángulo en lugar del alfiler azul
         pointToLayer: function (feature, latlng) {
             return L.marker(latlng, { icon: iconoAlerta });
         },
@@ -101,6 +102,7 @@ function renderizarIncidentes(municipioFiltro) {
             let descripcion = limpiar(feature.properties['DESCRIPCIÓN']);
             let observaciones = limpiar(feature.properties['OBSERVACIONES']);
 
+            // --- ARMADO DE LA BURBUJA (POPUP) ---
             let popupContent = `
                 <div style="font-family: sans-serif; min-width: 220px;">
                     <h4 style="margin-top:0; margin-bottom: 5px; color:#d9534f; font-size: 16px;">${municipio}</h4>
@@ -128,8 +130,21 @@ function renderizarIncidentes(municipioFiltro) {
             popupContent += `</div>`;
             layer.bindPopup(popupContent);
             
+            // --- ARMADO DE LA TARJETA LATERAL (SOLO SI HAY FILTRO) ---
+            if (municipioFiltro && feature.geometry && feature.geometry.coordinates) {
+                let lat = feature.geometry.coordinates[1];
+                let lng = feature.geometry.coordinates[0];
+                
+                htmlListaLateral += `
+                    <div class="tarjeta-sidebar" onclick="map.setView([${lat}, ${lng}], 18)">
+                        <div style="color: #777; font-size: 11px; margin-bottom: 4px;">📅 ${fecha} - ⏰ ${hora}</div>
+                        <div style="font-weight: bold; color: #111;">${inmueble || 'Incidente'}</div>
+                        ${detenidos ? `<div style="color: #d9534f; font-weight: bold; margin-top: 4px;">🚨 Detenidos: ${detenidos}</div>` : ''}
+                    </div>
+                `;
+            }
+
             grupoMarcadores.addLayer(layer);
-            
             if (feature.geometry && feature.geometry.coordinates) {
                 coordenadasCalor.push([feature.geometry.coordinates[1], feature.geometry.coordinates[0], 1]);
             }
@@ -138,10 +153,35 @@ function renderizarIncidentes(municipioFiltro) {
 
     heatLayer.setLatLngs(coordenadasCalor);
 
+    // Actualizamos el panel de conteo de abajo
     document.getElementById('conteo-titulo').innerText = municipioFiltro ? municipioFiltro : 'Todo el Estado';
     document.getElementById('conteo-numero').innerText = contadorEventos + (contadorEventos === 1 ? ' Evento' : ' Eventos');
     document.getElementById('panel-conteo').style.display = 'block';
+
+    // --- CONTROL DE LA BARRA LATERAL ---
+    let sidebar = document.getElementById('sidebar-eventos');
+    if (municipioFiltro && contadorEventos > 0) {
+        // Si hay un municipio seleccionado y tiene eventos, la llenamos y la deslizamos a la pantalla
+        document.getElementById('sidebar-titulo').innerText = municipioFiltro;
+        document.getElementById('sidebar-contenido').innerHTML = htmlListaLateral;
+        sidebar.classList.add('activo');
+    } else {
+        // Si estamos viendo todo el estado, o no hay eventos, la escondemos
+        sidebar.classList.remove('activo');
+    }
 }
+
+// --- FUNCIÓN PARA LIMPIAR EL FILTRO ---
+window.quitarFiltro = function() {
+    filtroActivoMunicipio = null;
+    renderizarIncidentes(null);
+    document.getElementById('btn-reset-filtro').style.display = 'none';
+    
+    // Escondemos la barra lateral
+    document.getElementById('sidebar-eventos').classList.remove('activo');
+    
+    map.setView([19.4326, -99.1332], 9); 
+};
 
 fetch('datos.geojson')
     .then(response => response.json())

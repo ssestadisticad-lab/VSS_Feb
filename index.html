@@ -74,6 +74,39 @@
             background: none;
             border: none;
         }
+
+       /* 4. Panel Lateral Deslizante para la Lista de Eventos */
+        #sidebar-eventos {
+            position: fixed;
+            top: 0;
+            right: -320px; /* Escondido 320px hacia la derecha fuera de la pantalla */
+            width: 320px;
+            height: calc(100vh - 60px); /* Respeta la barra blanca de abajo */
+            background-color: #f8f9fa;
+            box-shadow: -2px 0 10px rgba(0,0,0,0.2);
+            z-index: 1000;
+            transition: right 0.4s ease; /* Efecto suave de deslizamiento */
+            overflow-y: auto;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        
+        /* Cuando le agreguemos esta clase con JavaScript, el panel entrará a la pantalla */
+        #sidebar-eventos.activo {
+            right: 0; 
+        }
+
+        /* Diseño de cada tarjetita en la lista */
+        .tarjeta-sidebar {
+            background: white; border-left: 4px solid #d9534f;
+            padding: 12px; margin-bottom: 12px; border-radius: 6px;
+            font-size: 13px; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: transform 0.2s, background 0.2s;
+        }
+        .tarjeta-sidebar:hover {
+            background: #ffebe9;
+            transform: scale(1.02); /* Se hace un poquito más grande al pasar el ratón */
+        }
     </style>
 </head>
 <body>
@@ -102,6 +135,13 @@
     </div>
 
     <div id="map"></div>
+
+    <div id="sidebar-eventos">
+        <h3 style="margin-top:0; color:#0056b3; border-bottom: 2px solid #ccc; padding-bottom: 10px;">
+            📍 <span id="sidebar-titulo">Municipio</span>
+        </h3>
+        <div id="sidebar-contenido"></div> 
+    </div>
 
     <div id="footer">
         <img src="logo.jpg" alt="Logotipo Institucional">
